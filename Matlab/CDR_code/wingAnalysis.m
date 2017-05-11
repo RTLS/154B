@@ -464,3 +464,5 @@ plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
 plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
 plot(centroid.posX,centroid.posZ,'rx')
 plot(sc.posX,sc.posZ,'gx')
+
+%Hello this is parmida's comment
