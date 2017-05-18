@@ -3,11 +3,7 @@ clear all;
 close all;
 
 
-
-
-Vx = 1; Vz = 1; My = 1;  %test loads will be applied individually
-
-%define a few 
+%% Define out geometry -- will optimize on this later
 numTopStringers = 4;
 numBottomStringers = 4;
 numNoseTopStringers = 2;
@@ -22,6 +18,19 @@ t_rearSpar = 0.04/12;
 
 frontSpar = 0.2;
 backSpar = 0.7;
+
+
+%% Solve for our conditions in unit cases, for superposition
+
+for loading_condition = 1:3
+    
+if loading_condition == 1
+    Vx = 1; Vz = 0; My = 0;
+elseif loading_condition == 2
+    Vx = 0; Vz = 1; My = 0;
+elseif loading_condition == 3
+    Vx = 0; Vz = 0; My = 1;
+end
 
 sparCaps(1).posX = frontSpar;
 sparCaps(2).posX = frontSpar;
@@ -285,8 +294,6 @@ webFrontSpar = web;
 web = [];
 
 
-
-
 %% web cell 2
 
 %lower nose webs
@@ -415,13 +422,14 @@ webFrontSparCell2 = web;
 web = [];
 
 
-%check that q'*dx sums up to Vx
+%% Check that q'*dx sums up to Vx
 
 Fx = sum([webTop.qp_dx_X])+webRearSpar.qp_dx_X+ sum([webBottom.qp_dx_X])+webFrontSpar.qp_dx_X;  %cell 1
 Fx = Fx + sum([webLowerNose.qp_dx_X])+ sum([webUpperNose.qp_dx_X]);  %cell 2
 Fx
-Fz = sum([webTop.qp_dz_X])+webRearSpar.qp_dz_X+ sum([webBottom.qp_dz_X])+webFrontSpar.qp_dz_X;  %cell 1
-Fz = Fz + sum([webLowerNose.qp_dz_X])+ sum([webUpperNose.qp_dz_X]);  %cell 2
+
+Fz = sum([webTop.qp_dz_Z])+webRearSpar.qp_dz_Z+ sum([webBottom.qp_dz_Z])+webFrontSpar.qp_dz_Z;  %cell 1
+Fz = Fz + sum([webLowerNose.qp_dz_Z])+ sum([webUpperNose.qp_dz_Z]);  %cell 2
 Fz
 %%
 
@@ -447,7 +455,6 @@ qs_X = inv(Amat)*Bmat_X;
 qs_Z = inv(Amat)*Bmat_Z;
 
 
-
 sum_2_a_q_X = sum([webTop.two_A_qprime_X])+webRearSpar.two_A_qprime_X+ sum([webBottom.two_A_qprime_X]);  %cell 1 qprimes
 sum_2_a_q_X = sum_2_a_q_X + sum([webLowerNose.two_A_qprime_X])+ sum([webUpperNose.two_A_qprime_X]);   %cell 2 qprimes
 sum_2_a_q_X = sum_2_a_q_X +  qs_X(1)*(sum([webTop.Area])+webRearSpar.Area+ sum([webBottom.Area]));
@@ -468,6 +475,7 @@ sc.posZ =  sum_2_a_q_X / Vx;
  
 torque_Z = Vz*(sc.posX - 0.25);
 torque_X = Vx*sc.posZ;
+torque_Y = My;
 
 
 Area1 = sum([webTop.Area]) + webRearSpar.Area + sum([webBottom.Area]);
@@ -490,19 +498,23 @@ q2t = torque_Z/(2*Area1*q1t_over_q2t + 2*Area2);
 q1t = q2t*q1t_over_q2t;
 qt_Z = [q1t;q2t];
 
+q2t = torque_Y/(2*Area1*q1t_over_q2t + 2*Area2);
+q1t = q2t*q1t_over_q2t;
+qt_Y = [q1t;q2t];
 
 
-% --- - add up all shear flows:  qtot = qPrime + qt + qs
+%% --- - add up all shear flows:  qtot = qPrime + qt + qs
+
+webTop = sum_shear_flows(webTop, qt_X(1), qt_Y(1), qt_Z(1), qs_X(1), qs_Z(1));
+webBottom = sum_shear_flows(webBottom, qt_X(1), qt_Y(1), qt_Z(1), qs_X(1), qs_Z(1));
+webRearSpar = sum_shear_flows(webRearSpar, qt_X(1), qt_Y(1), qt_Z(1), qs_X(1), qs_Z(1));
+webUpperNose = sum_shear_flows(webUpperNose, qt_X(2), qt_Y(2), qt_Z(2), qs_X(2), qs_Z(2));
+webLowerNose = sum_shear_flows(webLowerNose, qt_X(2), qt_Y(2), qt_Z(2), qs_X(2), qs_Z(2));
+webFrontSpar = sum_shear_flows(webFrontSpar, qt_X(1)-qt_X(2), qt_Y(1)-qt_Y(2), qt_Z(1)-qt_Z(2),...
+                                qs_X(1)-qs_X(2), qs_Z(1)-qs_Z(2));
 
 
-
-
-%--- insert force balance to check total shear flows --- 
-
-% --- -- 
-
-
-%end
+end
 
 sc
 
