@@ -2,6 +2,8 @@
 clear all;
 close all;
 
+distributions
+
 
 %% Define out geometry -- will optimize on this later
 numTopStringers = 4;
@@ -512,6 +514,18 @@ webUpperNose = sum_shear_flows(webUpperNose, qt_X(2), qt_Y(2), qt_Z(2), qs_X(2),
 webLowerNose = sum_shear_flows(webLowerNose, qt_X(2), qt_Y(2), qt_Z(2), qs_X(2), qs_Z(2));
 webFrontSpar = sum_shear_flows(webFrontSpar, qt_X(1)-qt_X(2), qt_Y(1)-qt_Y(2), qt_Z(1)-qt_Z(2),...
                                 qs_X(1)-qs_X(2), qs_Z(1)-qs_Z(2));
+
+
+%% Shear flows and stresses, still need to superimpose tho
+if loading_condition == 1
+    unit_shear_flows_X = [webUpperNose.qtot_X webTop.qtot_X webRearSpar.qtot_X webBottom.qtot_X webFrontSpar.qtot_X webLowerNose.qtot_X];
+%     unit_shear_stresses_X = [webUpperNose.qtot_X./t_upper_front webTop.qtot_X./t_upper webRearSpar.qtot_X./t_rearSpar...
+%         webBottom.qtot_X./t_lower webFrontSpar.qtot_X./t_frontSpar webLowerNose.qtot_X./t_lower_front];
+elseif loading_condition ==2
+    unit_shear_flows_Z = [webUpperNose.qtot_Z webTop.qtot_Z webRearSpar.qtot_Z webBottom.qtot_Z webFrontSpar.qtot_Z webLowerNose.qtot_Z];
+elseif loading_condition == 3
+    unit_shear_flows_Y = [webUpperNose.qtot_Y webTop.qtot_Y webRearSpar.qtot_Y webBottom.qtot_Y webFrontSpar.qtot_Y webLowerNose.qtot_Y];
+end
 
 
 end

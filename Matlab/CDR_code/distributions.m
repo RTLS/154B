@@ -198,8 +198,9 @@ for cond_iter = 1:length(conditions)
         xlabel('Spanwise Location [inches]')
         ylabel('Pounds/Inch^3')
         legend(condition_names)
-       
+        
     end
+       
     end 
 end
 
