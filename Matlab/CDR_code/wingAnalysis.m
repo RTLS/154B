@@ -5,7 +5,7 @@ close all;
 distributions
 
 
-%% Define out geometry -- will optimize on this later
+%% Define our geometry -- will optimize on this later
 numTopStringers = 4;
 numBottomStringers = 4;
 numNoseTopStringers = 2;
@@ -21,6 +21,8 @@ t_rearSpar = 0.04/12;
 frontSpar = 0.2;
 backSpar = 0.7;
 
+numRibs = 12;
+ribL = b / (2*numRibs);
 
 %% Solve for our conditions in unit cases, for superposition
 
@@ -141,12 +143,12 @@ end
 %% web cell 1
 
 %upper webs
-numStringers = numTopStringers;
+numWebs = numTopStringers;
 stringerGap = upperStringerGap;
 webThickness = t_upper;
 tempStringers = topStringers;
 
-for i=1:(numStringers+1)
+for i=1:(numWebs+1)
     web(i).xStart = sparCaps(1).posX + stringerGap*(i-1);
     web(i).xEnd = sparCaps(1).posX + stringerGap*(i);
     web(i).thickness = webThickness;
@@ -219,12 +221,12 @@ web = [];
 
 
 %lower webs
-numStringers = numBottomStringers;
+numWebs = numBottomStringers;
 stringerGap = lowerStringerGap;
 webThickness = t_lower;
 tempStringers = bottomStringers;
 
-for i=1:(numStringers+1)
+for i=1:(numWebs+1)
     web(i).xStart = sparCaps(4).posX - stringerGap*(i-1);
     web(i).xEnd = sparCaps(4).posX - stringerGap*(i);
     web(i).thickness = webThickness;
@@ -299,12 +301,12 @@ web = [];
 %% web cell 2
 
 %lower nose webs
-numStringers = numNoseBottomStringers;
+numWebs = numNoseBottomStringers;
 stringerGap = lowerNoseStringerGap;
 webThickness = t_lower_front;
 tempStringers = noseBottomStringers;
 
-for i=1:(numStringers+1)
+for i=1:(numWebs+1)
     web(i).xStart = sparCaps(2).posX - stringerGap*(i-1);
     web(i).xEnd = sparCaps(2).posX - stringerGap*(i);
     web(i).thickness = webThickness;
@@ -347,12 +349,12 @@ webLowerNose = web;
 web = [];
 
 %upper nose webs
-numStringers = numNoseTopStringers;
+numWebs = numNoseTopStringers;
 stringerGap = upperNoseStringerGap;
 webThickness = t_upper_front;
 tempStringers = noseTopStringers;
 
-for i=1:(numStringers+1)
+for i=1:(numWebs+1)
     web(i).xStart = stringerGap*(i-1);
     web(i).xEnd = stringerGap*(i);
     web(i).thickness = webThickness;
@@ -519,18 +521,67 @@ webFrontSpar = sum_shear_flows(webFrontSpar, qt_X(1)-qt_X(2), qt_Y(1)-qt_Y(2), q
 %% Shear flows and stresses, still need to superimpose tho
 if loading_condition == 1
     unit_shear_flows_X = [webUpperNose.qtot_X webTop.qtot_X webRearSpar.qtot_X webBottom.qtot_X webFrontSpar.qtot_X webLowerNose.qtot_X];
-%     unit_shear_stresses_X = [webUpperNose.qtot_X./t_upper_front webTop.qtot_X./t_upper webRearSpar.qtot_X./t_rearSpar...
-%         webBottom.qtot_X./t_lower webFrontSpar.qtot_X./t_frontSpar webLowerNose.qtot_X./t_lower_front];
+    unit_shear_stresses_X = [[webUpperNose.qtot_X]/t_upper_front [webTop.qtot_X]/t_upper [webRearSpar.qtot_X]/t_rearSpar...
+        [webBottom.qtot_X]/t_lower [webFrontSpar.qtot_X]/t_frontSpar [webLowerNose.qtot_X]/t_lower_front];
 elseif loading_condition ==2
     unit_shear_flows_Z = [webUpperNose.qtot_Z webTop.qtot_Z webRearSpar.qtot_Z webBottom.qtot_Z webFrontSpar.qtot_Z webLowerNose.qtot_Z];
+    unit_shear_stresses_Z = [[webUpperNose.qtot_Z]/t_upper_front [webTop.qtot_Z]/t_upper [webRearSpar.qtot_Z]/t_rearSpar...
+        [webBottom.qtot_Z]/t_lower [webFrontSpar.qtot_Z]/t_frontSpar [webLowerNose.qtot_Z]/t_lower_front];
 elseif loading_condition == 3
     unit_shear_flows_Y = [webUpperNose.qtot_Y webTop.qtot_Y webRearSpar.qtot_Y webBottom.qtot_Y webFrontSpar.qtot_Y webLowerNose.qtot_Y];
+    unit_shear_stresses_Y = [[webUpperNose.qtot_Y]/t_upper_front [webTop.qtot_Y]/t_upper [webRearSpar.qtot_Y]/t_rearSpar...
+        [webBottom.qtot_Y]/t_lower [webFrontSpar.qtot_Y]/t_frontSpar [webLowerNose.qtot_Y]/t_lower_front];
 end
 
 
 end
 
-sc
+
+%% Shear Stress Distributions
+numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
+numCrossSections = length(PHAA_MX);
+PHAA_shear_stress = zeros(numWebs, numCrossSections);
+PLAA_shear_stress = zeros(numWebs, numCrossSections);
+NHAA_shear_stress = zeros(numWebs, numCrossSections);
+NLAA_shear_stress = zeros(numWebs, numCrossSections);
+
+for i = 1:numCrossSections
+   PHAA_shear_stress(:, i) = unit_shear_stresses_X'*PHAA_VX(i) + unit_shear_stresses_Z'*PHAA_VZ(i); 
+   PLAA_shear_stress(:, i) = unit_shear_stresses_X'*PLAA_VX(i) + unit_shear_stresses_Z'*PLAA_VZ(i); 
+   NHAA_shear_stress(:, i) = unit_shear_stresses_X'*NHAA_VX(i) + unit_shear_stresses_Z'*NHAA_VZ(i); 
+   NLAA_shear_stress(:, i) = unit_shear_stresses_X'*NLAA_VX(i) + unit_shear_stresses_Z'*NLAA_VZ(i); 
+end
+
+%% Bending Stress Distribution
+stringerLocationsX = [noseTopStringers.posX sparCaps(1).posX topStringers.posX sparCaps(3).posX sparCaps(4).posX...
+                        bottomStringers.posX sparCaps(2).posX noseBottomStringers.posX];
+stringerLocationsZ = [noseTopStringers.posZ sparCaps(1).posZ topStringers.posZ sparCaps(3).posZ sparCaps(4).posZ...
+                        bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];
+
+numStringers = length(stringerLocationsX);
+PHAA_bending_stress = zeros(numStringers, numCrossSections);
+PLAA_bending_stress = zeros(numStringers, numCrossSections);
+NHAA_bending_stress = zeros(numStringers, numCrossSections);
+NLAA_bending_stress = zeros(numStringers, numCrossSections);
+
+for i = 1:numCrossSections
+    frac1 = (Ix*PHAA_MZ(i) + Ixz*PHAA_MX(i))/(Ix*Iz - Ixz^2);
+    frac2 = (Iz*PHAA_MX(i) + Ixz*PHAA_MZ(i))/(Ix*Iz - Ixz^2);
+    PHAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
+    
+    frac1 = (Ix*PLAA_MZ(i) + Ixz*PLAA_MX(i))/(Ix*Iz - Ixz^2);
+    frac2 = (Iz*PLAA_MX(i) + Ixz*PLAA_MZ(i))/(Ix*Iz - Ixz^2);
+    PLAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
+    
+    frac1 = (Ix*NHAA_MZ(i) + Ixz*NHAA_MX(i))/(Ix*Iz - Ixz^2);
+    frac2 = (Iz*NHAA_MX(i) + Ixz*NHAA_MZ(i))/(Ix*Iz - Ixz^2);
+    NHAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
+    
+    frac1 = (Ix*NLAA_MZ(i) + Ixz*NLAA_MX(i))/(Ix*Iz - Ixz^2);
+    frac2 = (Iz*NLAA_MX(i) + Ixz*NLAA_MZ(i))/(Ix*Iz - Ixz^2);
+    NLAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
+end
+
 
 
 %plotting airfoil cross-section
@@ -544,7 +595,7 @@ for i=1:length(xChord)
     lowerSurface(i) = get_z(xChord(i),0);
 end
 
-figure; hold on; axis equal; grid on;
+figure(1); hold on; axis equal; grid on;
 %plot(xChord,z_camber,'-')
 plot(xChord,upperSurface,'-')
 plot(xChord,lowerSurface,'-')
@@ -558,3 +609,9 @@ plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
 plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
 plot(centroid.posX,centroid.posZ,'rx')
 plot(sc.posX,sc.posZ,'gx')
+
+figure(2); hold on;
+scatter3(stringerLocationsX, stringerLocationsZ, PHAA_bending_stress(:,1),'filled')
+scatter3(xChord,upperSurface,zeros(1,length(upperSurface)));
+scatter3(xChord,lowerSurface,zeros(1,length(lowerSurface)));
+
