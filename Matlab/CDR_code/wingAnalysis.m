@@ -21,8 +21,8 @@ t_rearSpar = 0.04/12;
 frontSpar = 0.2;
 backSpar = 0.7;
 
-numRibs = 12;
-ribL = b / (2*numRibs);
+numRibs = 18;
+ribL = b*12 / (2*(numRibs-1));
 
 %% Solve for our conditions in unit cases, for superposition
 
@@ -128,7 +128,7 @@ end
 for i=1:numNoseTopStringers %nose top stringers
     Ix = Ix + noseTopStringers(i).area*(noseTopStringers(i).posZ-centroid.posZ)^2;
     Iz = Iz + noseTopStringers(i).area*(noseTopStringers(i).posX-centroid.posX)^2;
-    Ixz = Ixz + noseTopStringers(i).area*(noseTopStringers(i).posX-centroid.posX)*(noseTopStringers(i).posZ-centroid.posZ);
+    Ixz = Ixz + noseTopStrMingers(i).area*(noseTopStringers(i).posX-centroid.posX)*(noseTopStringers(i).posZ-centroid.posZ);
 end
 for i=1:numNoseBottomStringers %nose bottom stringers
     Ix = Ix + noseBottomStringers(i).area*(noseBottomStringers(i).posZ-centroid.posZ)^2;
@@ -430,11 +430,9 @@ web = [];
 
 Fx = sum([webTop.qp_dx_X])+webRearSpar.qp_dx_X+ sum([webBottom.qp_dx_X])+webFrontSpar.qp_dx_X;  %cell 1
 Fx = Fx + sum([webLowerNose.qp_dx_X])+ sum([webUpperNose.qp_dx_X]);  %cell 2
-Fx
 
 Fz = sum([webTop.qp_dz_Z])+webRearSpar.qp_dz_Z+ sum([webBottom.qp_dz_Z])+webFrontSpar.qp_dz_Z;  %cell 1
 Fz = Fz + sum([webLowerNose.qp_dz_Z])+ sum([webUpperNose.qp_dz_Z]);  %cell 2
-Fz
 %%
 
 % sum up the ds/t and  q*ds/t to solve 2 equations, 2 unknowns
@@ -536,6 +534,10 @@ end
 
 end
 
+%% Converting entities to IPS
+Ix = Ix * 12^4;
+Iz = Iz * 12^4;
+Ixz = Ixz * 12^4;
 
 %% Shear Stress Distributions
 numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
@@ -557,7 +559,9 @@ stringerLocationsX = [noseTopStringers.posX sparCaps(1).posX topStringers.posX s
                         bottomStringers.posX sparCaps(2).posX noseBottomStringers.posX];
 stringerLocationsZ = [noseTopStringers.posZ sparCaps(1).posZ topStringers.posZ sparCaps(3).posZ sparCaps(4).posZ...
                         bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];
-
+stringerLocationsX = stringerLocationsX * 5 * 12;
+stringerLocationsZ = stringerLocationsZ * 5 * 12;
+                    
 numStringers = length(stringerLocationsX);
 PHAA_bending_stress = zeros(numStringers, numCrossSections);
 PLAA_bending_stress = zeros(numStringers, numCrossSections);
@@ -582,7 +586,39 @@ for i = 1:numCrossSections
     NLAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
 end
 
+%% Getting F critical for bending
+E = 9993100;        % PSI (68.9 GPa)
+k=1;
+F_crit = (pi^2 * E * Ix) / (k * ribL)^2;
+Sigma_crit = F_crit./[[noseTopStringers.area] [sparCaps(1).area] [topStringers.area] [sparCaps(3).area]...
+                      [sparCaps(4).area] [bottomStringers.area] [sparCaps(2).area] [noseBottomStringers.area]];
 
+% loading into table, FOS
+stringerNames = cell(numStringers, 1);
+for i = 1:numStringers
+   if i <= numNoseTopStringers
+       stringerNames(i) = {['topNoseStringer' int2str(i)]};
+   elseif i == numNoseTopStringers + 1
+       stringerNames(i) = {['frontSparTopCap']};
+   elseif i <= numTopStringers + numNoseTopStringers + 1
+       stringerNames(i) = {['topStringer' int2str(i - numNoseTopStringers - 1)]};
+   elseif i == numTopStringers + numNoseTopStringers + 2
+       stringerNames(i) = {['backSparTopCap']};
+   elseif i == numTopStringers + numNoseTopStringers + 3
+       stringerNames(i) = {['backSparBottomCap']};
+   elseif i <= numTopStringers + numNoseTopStringers + numBottomStringers + 3
+       stringerNames(i) = {['bottomStringer' int2str(i - numNoseTopStringers - numTopStringers - 3)]};
+   elseif i == numTopStringers + numNoseTopStringers + numBottomStringers + 4
+       stringerNames(i) = {['frontSparBottomCap']};
+   else
+       stringerNames(i) = {['bottomNoseStringer' int2str(i - numNoseTopStringers - numTopStringers - numBottomStringers - 4)]};
+   end
+end
+
+FOS = table(PHAA_bending_stress(:,1),abs(Sigma_crit'./PHAA_bending_stress(:,1)));
+FOS.Properties.VariableNames = {'Load', 'FOS'};
+FOS.Properties.RowNames = stringerNames;
+display(FOS)
 
 %plotting airfoil cross-section
 
