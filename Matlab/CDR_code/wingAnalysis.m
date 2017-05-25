@@ -3,6 +3,7 @@ clear all;
 close all;
 
 distributions
+plotting = 0;
 
 
 %% Define our geometry -- will optimize on this later
@@ -12,16 +13,17 @@ numNoseTopStringers = 2;
 numNoseBottomStringers = 2;
 
 % Thicknesses in inches
-t_upper = 0.02/12;
-t_lower = 0.02/12;
-t_upper_front = 0.02/12;
-t_lower_front = 0.02/12;
-t_frontSpar = 0.04/12;
-t_rearSpar = 0.04/12;
+t_upper = 0.02;
+t_lower = 0.02;
+t_upper_front = 0.02;
+t_lower_front = 0.02;
+t_frontSpar = 0.04;
+t_rearSpar = 0.04;
 
+c = 5*12;
 
-frontSpar = 0.2;
-backSpar = 0.7;
+frontSpar = 0.2 * c;
+backSpar = 0.7 * c;
 
 numRibs = 18;
 ribL = b*12 / (2*(numRibs-1));
@@ -538,17 +540,6 @@ end
 
 end
 
-%% Converting entities to IPS
-c = 5*12;       %chord length in inches
-% Upstream this is calculated in in^2 * unitless^2 (wtf?) but should be
-% in^4
-Ix = Ix * c^2;
-Iz = Iz * c^2;
-Ixz = Ixz * c^2;
-
-centroid.posX = centroid.posX*c;
-centroid.posZ = centroid.posZ*c;
-
 %% Shear Stress Distributions
 numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
 numCrossSections = length(PHAA_MX);
@@ -569,8 +560,6 @@ stringerLocationsX = [noseTopStringers.posX sparCaps(1).posX topStringers.posX s
                         bottomStringers.posX sparCaps(2).posX noseBottomStringers.posX];
 stringerLocationsZ = [noseTopStringers.posZ sparCaps(1).posZ topStringers.posZ sparCaps(3).posZ sparCaps(4).posZ...
                         bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];
-stringerLocationsX = stringerLocationsX * c;
-stringerLocationsZ = stringerLocationsZ * c;
                     
 numStringers = length(stringerLocationsX);
 PHAA_bending_stress = zeros(numStringers, numCrossSections);
@@ -599,7 +588,7 @@ end
 %% Getting F critical for bending
 E = 1.044E+7;        % PSI (68.9 GPa)
 k=1;
-F_crit = (pi^2 * E * Ix) / (k * ribL)^2;
+F_crit = (pi^2 * E * 0.0035) / (k * ribL)^2;
 Sigma_crit = F_crit./[[noseTopStringers.area] [sparCaps(1).area] [topStringers.area] [sparCaps(3).area]...
                       [sparCaps(4).area] [bottomStringers.area] [sparCaps(2).area] [noseBottomStringers.area]];
 
@@ -629,7 +618,7 @@ end
 path = '../../Reports/CDR/plots/';
 
 % FIXME (dividing by 10^6)
-FOS = table(PHAA_bending_stress(:,200),abs(Sigma_crit'/10^6./PHAA_bending_stress(:,1)));
+FOS = table(PHAA_bending_stress(:,205),abs(Sigma_crit'./PHAA_bending_stress(:,205)));
 FOS.Properties.VariableNames = {'BendingStress', 'FOS'};
 FOS.Properties.RowNames = stringerNames;
 display(FOS)
@@ -645,51 +634,54 @@ for i=1:length(xChord)
     lowerSurface(i) = get_z(xChord(i),0);
 end
 
-figure(1); hold on; axis equal; grid on;
-%plot(xChord,z_camber,'-')
-plot(xChord,upperSurface,'-')
-plot(xChord,lowerSurface,'-')
+if plotting
 
-plot([sparCaps(1).posX sparCaps(2).posX],[sparCaps(1).posZ sparCaps(2).posZ],'-')
-plot([sparCaps(3).posX sparCaps(4).posX],[sparCaps(3).posZ sparCaps(4).posZ],'-')
-plot([sparCaps.posX],[sparCaps.posZ],'o')
-plot([topStringers.posX],[topStringers.posZ],'or')
-plot([bottomStringers.posX],[bottomStringers.posZ],'or')
-plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
-plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
-plot(centroid.posX/c,centroid.posZ/c,'rx')
-plot(sc.posX,sc.posZ,'gx')
-title('Cross Section Layout')
-xlabel('Chord Percent')
-ylabel('Chord Percent')
-print(strcat([path 'cross_section']), '-dpng');
+    figure(1); hold on; axis equal; grid on;
+    %plot(xChord,z_camber,'-')
+    plot(xChord,upperSurface,'-')
+    plot(xChord,lowerSurface,'-')
 
-figure(2); hold on;
-scatter3(stringerLocationsX/c, stringerLocationsZ/c, PHAA_bending_stress(:,200),'filled')
-scatter3(xChord,upperSurface,zeros(1,length(upperSurface)));
-scatter3(xChord,lowerSurface,zeros(1,length(lowerSurface)));
-title('Bending Stress in each Stringer')
-xlabel('Chord Percent')
-ylabel('Chord Percent')
-zlabel('Bending Stress [psi]')
-view(-30,30)
-set(gcf, 'Position', [200, 200, 800, 400])
-print(strcat([path 'bending_stress_3d']), '-dpng');
+    plot([sparCaps(1).posX sparCaps(2).posX],[sparCaps(1).posZ sparCaps(2).posZ],'-')
+    plot([sparCaps(3).posX sparCaps(4).posX],[sparCaps(3).posZ sparCaps(4).posZ],'-')
+    plot([sparCaps.posX],[sparCaps.posZ],'o')
+    plot([topStringers.posX],[topStringers.posZ],'or')
+    plot([bottomStringers.posX],[bottomStringers.posZ],'or')
+    plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
+    plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
+    plot(centroid.posX/c,centroid.posZ/c,'rx')
+    plot(sc.posX,sc.posZ,'gx')
+    title('Cross Section Layout')
+    xlabel('Chord Percent')
+    ylabel('Chord Percent')
+    print(strcat([path 'cross_section']), '-dpng');
 
-figure(3); hold on;
-for i = 1:length(PHAA_shear_stress(:,1));
-    plot(PHAA_shear_stress(i,:))
+    figure(2); hold on;
+    scatter3(stringerLocationsX/c, stringerLocationsZ/c, PHAA_bending_stress(:,200),'filled')
+    scatter3(xChord,upperSurface,zeros(1,length(upperSurface)));
+    scatter3(xChord,lowerSurface,zeros(1,length(lowerSurface)));
+    title('Bending Stress in each Stringer')
+    xlabel('Chord Percent')
+    ylabel('Chord Percent')
+    zlabel('Bending Stress [psi]')
+    view(-30,30)
+    set(gcf, 'Position', [200, 200, 800, 400])
+    print(strcat([path 'bending_stress_3d']), '-dpng');
+
+    figure(3); hold on;
+    for i = 1:length(PHAA_shear_stress(:,1));
+        plot(PHAA_shear_stress(i,:))
+    end
+    title('Shear Stress Across the Wing')
+    xlabel('X Distance [in]')
+    ylabel('Shear Stress [psi]')
+    print(strcat([path 'shear_stress_stringers']), '-dpng');
+
+    figure(4); hold on;
+    for i = 1:length(PHAA_bending_stress(:,1));
+        plot(PHAA_bending_stress(i,:))
+    end
+    title('Bending Stress Across the Wing')
+    xlabel('X Distance [in]')
+    ylabel('Shear Stress [psi]')
+    print(strcat([path 'bending_stress_stringers']), '-dpng');
 end
-title('Shear Stress Across the Wing')
-xlabel('X Distance [in]')
-ylabel('Shear Stress [psi]')
-print(strcat([path 'shear_stress_stringers']), '-dpng');
-
-figure(4); hold on;
-for i = 1:length(PHAA_bending_stress(:,1));
-    plot(PHAA_bending_stress(i,:))
-end
-title('Bending Stress Across the Wing')
-xlabel('X Distance [in]')
-ylabel('Shear Stress [psi]')
-print(strcat([path 'bending_stress_stringers']), '-dpng');

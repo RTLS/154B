@@ -1,5 +1,5 @@
 function z = get_z(x,u)
-
+x = x/5/12;
 M = 0.02;
 P = 0.4;
 T = 0.12;
@@ -21,5 +21,7 @@ z_thickness = (T/0.2)*(a0*x^.5+a1*x+a2*x^2+a3*x^3+a4*x^4);
 if u==1
     z = z_camber + z_thickness;
 else
-    z = z_camber - z_thickness;
+    z = z_camber - z_thickness;    
 end
+
+z = z*5*12;
