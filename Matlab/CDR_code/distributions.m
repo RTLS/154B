@@ -10,7 +10,7 @@ plotting = 0;
 %Airplane, wing, and flight parameters
 W = 3200;
 b = 34;
-c = 5;
+c = 5;                  % chord length in feet
 S = 170;                %ft^2 (FIXME)
 AR = b^2 / S;
 e = .8;
@@ -94,7 +94,7 @@ for cond_iter = 1:length(conditions)
     D_dist = (D/(12*b/2))*D_dist./mean(D_dist);
 
     if plotting
-        figure(2)
+        figure(2);
         plot(y,fliplr(D_dist))
         hold on
         if (cond_iter == length(conditions))

@@ -11,12 +11,14 @@ numBottomStringers = 4;
 numNoseTopStringers = 2;
 numNoseBottomStringers = 2;
 
+% Thicknesses in inches
 t_upper = 0.02/12;
 t_lower = 0.02/12;
 t_upper_front = 0.02/12;
 t_lower_front = 0.02/12;
 t_frontSpar = 0.04/12;
 t_rearSpar = 0.04/12;
+
 
 frontSpar = 0.2;
 backSpar = 0.7;
@@ -27,7 +29,8 @@ ribL = b*12 / (2*(numRibs-1));
 %% Solve for our conditions in unit cases, for superposition
 
 for loading_condition = 1:3
-    
+   
+% What are the units here?
 if loading_condition == 1
     Vx = 1; Vz = 0; My = 0;
 elseif loading_condition == 2
@@ -46,6 +49,7 @@ sparCaps(2).posZ = get_z(frontSpar,0);
 sparCaps(3).posZ = get_z(backSpar,1);
 sparCaps(4).posZ = get_z(backSpar,0);
 
+% in in^2
 sparCaps(1).area = .1;
 sparCaps(2).area = .1;
 sparCaps(3).area = .1;
@@ -128,7 +132,7 @@ end
 for i=1:numNoseTopStringers %nose top stringers
     Ix = Ix + noseTopStringers(i).area*(noseTopStringers(i).posZ-centroid.posZ)^2;
     Iz = Iz + noseTopStringers(i).area*(noseTopStringers(i).posX-centroid.posX)^2;
-    Ixz = Ixz + noseTopStrMingers(i).area*(noseTopStringers(i).posX-centroid.posX)*(noseTopStringers(i).posZ-centroid.posZ);
+    Ixz = Ixz + noseTopStringers(i).area*(noseTopStringers(i).posX-centroid.posX)*(noseTopStringers(i).posZ-centroid.posZ);
 end
 for i=1:numNoseBottomStringers %nose bottom stringers
     Ix = Ix + noseBottomStringers(i).area*(noseBottomStringers(i).posZ-centroid.posZ)^2;
@@ -535,9 +539,15 @@ end
 end
 
 %% Converting entities to IPS
-Ix = Ix * 12^4;
-Iz = Iz * 12^4;
-Ixz = Ixz * 12^4;
+c = 5*12;       %chord length in inches
+% Upstream this is calculated in in^2 * unitless^2 (wtf?) but should be
+% in^4
+Ix = Ix * c^2;
+Iz = Iz * c^2;
+Ixz = Ixz * c^2;
+
+centroid.posX = centroid.posX*c;
+centroid.posZ = centroid.posZ*c;
 
 %% Shear Stress Distributions
 numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
@@ -559,8 +569,8 @@ stringerLocationsX = [noseTopStringers.posX sparCaps(1).posX topStringers.posX s
                         bottomStringers.posX sparCaps(2).posX noseBottomStringers.posX];
 stringerLocationsZ = [noseTopStringers.posZ sparCaps(1).posZ topStringers.posZ sparCaps(3).posZ sparCaps(4).posZ...
                         bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];
-stringerLocationsX = stringerLocationsX * 5 * 12;
-stringerLocationsZ = stringerLocationsZ * 5 * 12;
+stringerLocationsX = stringerLocationsX * c;
+stringerLocationsZ = stringerLocationsZ * c;
                     
 numStringers = length(stringerLocationsX);
 PHAA_bending_stress = zeros(numStringers, numCrossSections);
@@ -587,7 +597,7 @@ for i = 1:numCrossSections
 end
 
 %% Getting F critical for bending
-E = 9993100;        % PSI (68.9 GPa)
+E = 1.044E+7;        % PSI (68.9 GPa)
 k=1;
 F_crit = (pi^2 * E * Ix) / (k * ribL)^2;
 Sigma_crit = F_crit./[[noseTopStringers.area] [sparCaps(1).area] [topStringers.area] [sparCaps(3).area]...
@@ -615,8 +625,12 @@ for i = 1:numStringers
    end
 end
 
-FOS = table(PHAA_bending_stress(:,1),abs(Sigma_crit'./PHAA_bending_stress(:,1)));
-FOS.Properties.VariableNames = {'Load', 'FOS'};
+%% Data Visualization
+path = '../../Reports/CDR/plots/';
+
+% FIXME (dividing by 10^6)
+FOS = table(PHAA_bending_stress(:,200),abs(Sigma_crit'/10^6./PHAA_bending_stress(:,1)));
+FOS.Properties.VariableNames = {'BendingStress', 'FOS'};
 FOS.Properties.RowNames = stringerNames;
 display(FOS)
 
@@ -643,11 +657,39 @@ plot([topStringers.posX],[topStringers.posZ],'or')
 plot([bottomStringers.posX],[bottomStringers.posZ],'or')
 plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
 plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
-plot(centroid.posX,centroid.posZ,'rx')
+plot(centroid.posX/c,centroid.posZ/c,'rx')
 plot(sc.posX,sc.posZ,'gx')
+title('Cross Section Layout')
+xlabel('Chord Percent')
+ylabel('Chord Percent')
+print(strcat([path 'cross_section']), '-dpng');
 
 figure(2); hold on;
-scatter3(stringerLocationsX, stringerLocationsZ, PHAA_bending_stress(:,1),'filled')
+scatter3(stringerLocationsX/c, stringerLocationsZ/c, PHAA_bending_stress(:,200),'filled')
 scatter3(xChord,upperSurface,zeros(1,length(upperSurface)));
 scatter3(xChord,lowerSurface,zeros(1,length(lowerSurface)));
+title('Bending Stress in each Stringer')
+xlabel('Chord Percent')
+ylabel('Chord Percent')
+zlabel('Bending Stress [psi]')
+view(-30,30)
+set(gcf, 'Position', [200, 200, 800, 400])
+print(strcat([path 'bending_stress_3d']), '-dpng');
 
+figure(3); hold on;
+for i = 1:length(PHAA_shear_stress(:,1));
+    plot(PHAA_shear_stress(i,:))
+end
+title('Shear Stress Across the Wing')
+xlabel('X Distance [in]')
+ylabel('Shear Stress [psi]')
+print(strcat([path 'shear_stress_stringers']), '-dpng');
+
+figure(4); hold on;
+for i = 1:length(PHAA_bending_stress(:,1));
+    plot(PHAA_bending_stress(i,:))
+end
+title('Bending Stress Across the Wing')
+xlabel('X Distance [in]')
+ylabel('Shear Stress [psi]')
+print(strcat([path 'bending_stress_stringers']), '-dpng');
