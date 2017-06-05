@@ -1,5 +1,8 @@
 function z = get_int(xi,xf,u)
 
+xi=xi/5/12;
+xf=xi/5/12;
+
 M = 0.02;
 P = 0.4;
 T = 0.12;
@@ -32,4 +35,8 @@ if u == 1
    z = intCamb + intThickness; 
 else
    z = abs(intCamb - intThickness);
+end
+
+z = z*5*12;
+
 end

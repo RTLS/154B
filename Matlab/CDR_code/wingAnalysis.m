@@ -4,6 +4,7 @@ close all;
 
 distributions
 plotting = 0;
+c = 5*12;
 
 
 %% Define our geometry -- will optimize on this later
@@ -13,20 +14,25 @@ numNoseTopStringers = 2;
 numNoseBottomStringers = 2;
 
 % Thicknesses in inches
-t_upper = 0.02;
-t_lower = 0.02;
-t_upper_front = 0.02;
-t_lower_front = 0.02;
-t_frontSpar = 0.04;
-t_rearSpar = 0.04;
+t_upper = 0.6;
+t_lower = 0.4;
+t_upper_front = 0.8;
+t_lower_front = 0.8;
+t_frontSpar = 0.032;
+t_rearSpar = 0.032;
 
-c = 5*12;
+frontSpar = 0.23 * c;
+backSpar = 0.498 * c;
 
-frontSpar = 0.2 * c;
-backSpar = 0.7 * c;
+numRibs = 20;
+nRib = 1:numRibs-1;
+ribL = exp(-1*nRib/numRibs);
+ribL = ribL*205/sum(ribL);
+ribLocations = zeros(1, numRibs);
+for i = 2:numRibs
+    ribLocations(i) = ribLocations(i-1) + ribL(i-1);
+end
 
-numRibs = 18;
-ribL = b*12 / (2*(numRibs-1));
 
 %% Solve for our conditions in unit cases, for superposition
 
@@ -52,10 +58,10 @@ sparCaps(3).posZ = get_z(backSpar,1);
 sparCaps(4).posZ = get_z(backSpar,0);
 
 % in in^2
-sparCaps(1).area = .1;
-sparCaps(2).area = .1;
-sparCaps(3).area = .1;
-sparCaps(4).area = .1;
+sparCaps(1).area = .05;
+sparCaps(2).area = .05;
+sparCaps(3).area = .05;
+sparCaps(4).area = .05;
 
 upperStringerGap = (sparCaps(3).posX - sparCaps(1).posX)/(numTopStringers + 1);
 lowerStringerGap = (sparCaps(3).posX - sparCaps(1).posX)/(numBottomStringers + 1);
@@ -527,10 +533,12 @@ if loading_condition == 1
     unit_shear_flows_X = [webUpperNose.qtot_X webTop.qtot_X webRearSpar.qtot_X webBottom.qtot_X webFrontSpar.qtot_X webLowerNose.qtot_X];
     unit_shear_stresses_X = [[webUpperNose.qtot_X]/t_upper_front [webTop.qtot_X]/t_upper [webRearSpar.qtot_X]/t_rearSpar...
         [webBottom.qtot_X]/t_lower [webFrontSpar.qtot_X]/t_frontSpar [webLowerNose.qtot_X]/t_lower_front];
+    shear_z = sc.posZ;
 elseif loading_condition ==2
     unit_shear_flows_Z = [webUpperNose.qtot_Z webTop.qtot_Z webRearSpar.qtot_Z webBottom.qtot_Z webFrontSpar.qtot_Z webLowerNose.qtot_Z];
     unit_shear_stresses_Z = [[webUpperNose.qtot_Z]/t_upper_front [webTop.qtot_Z]/t_upper [webRearSpar.qtot_Z]/t_rearSpar...
         [webBottom.qtot_Z]/t_lower [webFrontSpar.qtot_Z]/t_frontSpar [webLowerNose.qtot_Z]/t_lower_front];
+    shear_x = sc.posX;
 elseif loading_condition == 3
     unit_shear_flows_Y = [webUpperNose.qtot_Y webTop.qtot_Y webRearSpar.qtot_Y webBottom.qtot_Y webFrontSpar.qtot_Y webLowerNose.qtot_Y];
     unit_shear_stresses_Y = [[webUpperNose.qtot_Y]/t_upper_front [webTop.qtot_Y]/t_upper [webRearSpar.qtot_Y]/t_rearSpar...
@@ -539,6 +547,9 @@ end
 
 
 end
+
+sc.posX = shear_x;
+sc.posZ = shear_z;
 
 %% Shear Stress Distributions
 numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
@@ -556,72 +567,97 @@ for i = 1:numCrossSections
 end
 
 %% Bending Stress Distribution
+
+% Stringer info (names, locations, areas, etc.)
 stringerLocationsX = [noseTopStringers.posX sparCaps(1).posX topStringers.posX sparCaps(3).posX sparCaps(4).posX...
                         bottomStringers.posX sparCaps(2).posX noseBottomStringers.posX];
 stringerLocationsZ = [noseTopStringers.posZ sparCaps(1).posZ topStringers.posZ sparCaps(3).posZ sparCaps(4).posZ...
-                        bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];
-                    
+                        bottomStringers.posZ sparCaps(2).posZ noseBottomStringers.posZ];  
 numStringers = length(stringerLocationsX);
-PHAA_bending_stress = zeros(numStringers, numCrossSections);
-PLAA_bending_stress = zeros(numStringers, numCrossSections);
-NHAA_bending_stress = zeros(numStringers, numCrossSections);
-NLAA_bending_stress = zeros(numStringers, numCrossSections);
+stringerNames = get_stringer_names(numNoseTopStringers, numTopStringers, numBottomStringers, numStringers);
+stringerAreas = [[noseTopStringers.area] [sparCaps(1).area] [topStringers.area] [sparCaps(3).area]...
+                      [sparCaps(4).area] [bottomStringers.area] [sparCaps(2).area] [noseBottomStringers.area]];
+correctionAreas = [[t_upper_front*frontSpar/numNoseTopStringers*ones(1, numNoseTopStringers)] [0]...
+    [t_upper*(backSpar-frontSpar)/numTopStringers*ones(1, numTopStringers)] [0 0]...
+    [t_lower*(backSpar-frontSpar)/numBottomStringers*ones(1, numBottomStringers)] [0]...
+    [t_lower_front*frontSpar/numNoseBottomStringers*ones(1, numNoseBottomStringers)]];
+correctedStringerAreas = stringerAreas + correctionAreas;
 
-for i = 1:numCrossSections
-    frac1 = (Ix*PHAA_MZ(i) + Ixz*PHAA_MX(i))/(Ix*Iz - Ixz^2);
-    frac2 = (Iz*PHAA_MX(i) + Ixz*PHAA_MZ(i))/(Ix*Iz - Ixz^2);
-    PHAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
-    
-    frac1 = (Ix*PLAA_MZ(i) + Ixz*PLAA_MX(i))/(Ix*Iz - Ixz^2);
-    frac2 = (Iz*PLAA_MX(i) + Ixz*PLAA_MZ(i))/(Ix*Iz - Ixz^2);
-    PLAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
-    
-    frac1 = (Ix*NHAA_MZ(i) + Ixz*NHAA_MX(i))/(Ix*Iz - Ixz^2);
-    frac2 = (Iz*NHAA_MX(i) + Ixz*NHAA_MZ(i))/(Ix*Iz - Ixz^2);
-    NHAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
-    
-    frac1 = (Ix*NLAA_MZ(i) + Ixz*NLAA_MX(i))/(Ix*Iz - Ixz^2);
-    frac2 = (Iz*NLAA_MX(i) + Ixz*NLAA_MZ(i))/(Ix*Iz - Ixz^2);
-    NLAA_bending_stress(:, i) = (stringerLocationsX - centroid.posX)*frac1 - (stringerLocationsZ - centroid.posZ)*frac2;
-end
+Ix_stringers = stringerAreas.*(stringerLocationsZ-centroid.posZ).^2;
+Iz_stringers= stringerAreas.*(stringerLocationsX-centroid.posX).^2;
+Ixz_stringers= stringerAreas.*((stringerLocationsZ-centroid.posZ)+(stringerLocationsX-centroid.posX));
 
-%% Getting F critical for bending
+% Bending stress at points at ends of stringers
+PHAA_bending_stress = calc_bending_stress(PHAA_MX, PHAA_MZ, Ix_stringers, Iz_stringers, Ixz_stringers, stringerLocationsX, stringerLocationsZ, centroid);
+PLAA_bending_stress = calc_bending_stress(PLAA_MX, PLAA_MZ, Ix_stringers, Iz_stringers, Ixz_stringers, stringerLocationsX, stringerLocationsZ, centroid);
+NHAA_bending_stress = calc_bending_stress(NHAA_MX, NHAA_MZ, Ix_stringers, Iz_stringers, Ixz_stringers, stringerLocationsX, stringerLocationsZ, centroid);
+NLAA_bending_stress = calc_bending_stress(NLAA_MX, NLAA_MZ, Ix_stringers, Iz_stringers, Ixz_stringers, stringerLocationsX, stringerLocationsZ, centroid);
+
+% Average stringer stress
+PHAA_stringer_stress = avg_stringer_stress(PHAA_bending_stress, ribLocations);
+PLAA_stringer_stress = avg_stringer_stress(PLAA_bending_stress, ribLocations);
+NHAA_stringer_stress = avg_stringer_stress(NHAA_bending_stress, ribLocations);
+NLAA_stringer_stress = avg_stringer_stress(NLAA_bending_stress, ribLocations);
+
+% Panels
+PHAA_panel_stress = calc_panel_stress(PHAA_stringer_stress);
+PLAA_panel_stress = calc_panel_stress(PLAA_stringer_stress);
+NHAA_panel_stress = calc_panel_stress(NHAA_stringer_stress);
+NLAA_panel_stress = calc_panel_stress(NLAA_stringer_stress);
+
+panel_thickness = [t_upper_front*ones(numNoseTopStringers+1,1)' t_upper*ones(numTopStringers+1,1)'...
+                   t_lower*ones(numBottomStringers+1,1)' t_lower_front*ones(numNoseBottomStringers,1)'];
+
+
+%% Column Bucking
+
 E = 1.044E+7;        % PSI (68.9 GPa)
 k=1;
-F_crit = (pi^2 * E * 0.0035) / (k * ribL)^2;
-Sigma_crit = F_crit./[[noseTopStringers.area] [sparCaps(1).area] [topStringers.area] [sparCaps(3).area]...
-                      [sparCaps(4).area] [bottomStringers.area] [sparCaps(2).area] [noseBottomStringers.area]];
+F_crit_col = (pi^2 * E * Ix_stringers) ./ (k * ribL(1)).^2;
+Sigma_crit_col = F_crit_col./(correctedStringerAreas);
+fos_col = abs(Sigma_crit_col'./(PHAA_stringer_stress(:,numRibs-2)));
 
-% loading into table, FOS
-stringerNames = cell(numStringers, 1);
-for i = 1:numStringers
-   if i <= numNoseTopStringers
-       stringerNames(i) = {['topNoseStringer' int2str(i)]};
-   elseif i == numNoseTopStringers + 1
-       stringerNames(i) = {['frontSparTopCap']};
-   elseif i <= numTopStringers + numNoseTopStringers + 1
-       stringerNames(i) = {['topStringer' int2str(i - numNoseTopStringers - 1)]};
-   elseif i == numTopStringers + numNoseTopStringers + 2
-       stringerNames(i) = {['backSparTopCap']};
-   elseif i == numTopStringers + numNoseTopStringers + 3
-       stringerNames(i) = {['backSparBottomCap']};
-   elseif i <= numTopStringers + numNoseTopStringers + numBottomStringers + 3
-       stringerNames(i) = {['bottomStringer' int2str(i - numNoseTopStringers - numTopStringers - 3)]};
-   elseif i == numTopStringers + numNoseTopStringers + numBottomStringers + 4
-       stringerNames(i) = {['frontSparBottomCap']};
-   else
-       stringerNames(i) = {['bottomNoseStringer' int2str(i - numNoseTopStringers - numTopStringers - numBottomStringers - 4)]};
-   end
-end
+%% Panel Buckling
+% Flat Plate
+k = 7;
+poissons = 0.33;
+Sigma_crit_panel = (k*pi^2*E) / (12*(1-poissons^2)) * (panel_thickness'*(1./ribL)).^2;
+fos_panel = abs(Sigma_crit_panel ./ PHAA_panel_stress);
+
+% Cylindrical
+
+
+%% Von Mises
+PHAA_sigma_von = von_mises(PHAA_shear_stress, PHAA_bending_stress);
+
+
+%% Wing Divergence
+
+% Torque along cross sections
+Mac = 1;
+Torques = -1*Mac + PHAA_VZ(205)*(sc.posX - 0.25) - PHAA_VX(205)*(sc.posZ);
+dTheta_dy = 17*pi/180 / (b/2*12);
+GJ = Torques / (dTheta_dy);
+e_d = sqrt((sc.posX/c-.25)^2 + sc.posZ/c^2);
+Cl_alpha = 2*pi;
+aw = Cl_alpha / (1 + Cl_alpha / (pi * AR * e));
+
+% Divergence speed in mph
+V_d = sqrt((pi^2 * GJ)/(2 * (rho*(1/12)^3) * aw * e_d * c^2 * (b/2*12)^2));
+
+%% Wing Mass
+volume = sum(correctedStringerAreas)*b/2*12/144 + numRibs*1;
 
 %% Data Visualization
 path = '../../Reports/CDR/plots/';
 
-% FIXME (dividing by 10^6)
-FOS = table(PHAA_bending_stress(:,205),abs(Sigma_crit'./PHAA_bending_stress(:,205)));
-FOS.Properties.VariableNames = {'BendingStress', 'FOS'};
-FOS.Properties.RowNames = stringerNames;
-display(FOS)
+FOS_COL = table(PHAA_bending_stress(:,205), fos_col);
+FOS_COL.Properties.VariableNames = {'BendingStress','FOS'};
+FOS_COL.Properties.RowNames = stringerNames;
+display(FOS_COL)
+
+FOS_PANEL = table(fos_panel(:,numRibs-1));
+display(FOS_PANEL)
 
 %plotting airfoil cross-section
 
@@ -630,24 +666,24 @@ upperSurface = zeros(1,length(xChord));
 lowerSurface = zeros(1,length(xChord));
 
 for i=1:length(xChord)
-    upperSurface(i) = get_z(xChord(i),1);
-    lowerSurface(i) = get_z(xChord(i),0);
+    upperSurface(i) = get_z(xChord(i)*c,1);
+    lowerSurface(i) = get_z(xChord(i)*c,0);
 end
 
 if plotting
 
     figure(1); hold on; axis equal; grid on;
     %plot(xChord,z_camber,'-')
-    plot(xChord,upperSurface,'-')
-    plot(xChord,lowerSurface,'-')
+    plot(xChord,upperSurface./c,'-')
+    plot(xChord,lowerSurface./c,'-')
 
-    plot([sparCaps(1).posX sparCaps(2).posX],[sparCaps(1).posZ sparCaps(2).posZ],'-')
-    plot([sparCaps(3).posX sparCaps(4).posX],[sparCaps(3).posZ sparCaps(4).posZ],'-')
-    plot([sparCaps.posX],[sparCaps.posZ],'o')
-    plot([topStringers.posX],[topStringers.posZ],'or')
-    plot([bottomStringers.posX],[bottomStringers.posZ],'or')
-    plot([noseTopStringers.posX],[noseTopStringers.posZ],'or')
-    plot([noseBottomStringers.posX],[noseBottomStringers.posZ],'or')
+    plot([sparCaps(1).posX sparCaps(2).posX]./c,[sparCaps(1).posZ sparCaps(2).posZ]./c,'-')
+    plot([sparCaps(3).posX sparCaps(4).posX]./c,[sparCaps(3).posZ sparCaps(4).posZ]./c,'-')
+    plot([sparCaps.posX]./c,[sparCaps.posZ]./c,'o')
+    plot([topStringers.posX]./c,[topStringers.posZ]./c,'or')
+    plot([bottomStringers.posX]./c,[bottomStringers.posZ]./c,'or')
+    plot([noseTopStringers.posX]./c,[noseTopStringers.posZ]./c,'or')
+    plot([noseBottomStringers.posX]./c,[noseBottomStringers.posZ]./c,'or')
     plot(centroid.posX/c,centroid.posZ/c,'rx')
     plot(sc.posX,sc.posZ,'gx')
     title('Cross Section Layout')
