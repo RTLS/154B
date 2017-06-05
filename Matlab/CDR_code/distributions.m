@@ -1,11 +1,6 @@
-clc
-clear all
-close all
-format short g
-
 tic
 
-plotting = 0;
+dist_plotting = 0;
 
 %Airplane, wing, and flight parameters
 W = 3200;
@@ -47,7 +42,7 @@ for cond_iter = 1:length(conditions)
     
     
     %% Plotting Lift Distributions
-    if plotting
+    if dist_plotting
         figure(1)
         plot(y, fliplr(L_dist))
         hold on
@@ -93,7 +88,7 @@ for cond_iter = 1:length(conditions)
     D_dist = fliplr(horzcat(D_dist_rect(1:uint8(.8*length(D_dist_rect))), D_dist_tip(uint8(.8*length(D_dist_tip))+1:length(D_dist_tip))));
     D_dist = (D/(12*b/2))*D_dist./mean(D_dist);
 
-    if plotting
+    if dist_plotting
         figure(2);
         plot(y,fliplr(D_dist))
         hold on
@@ -136,7 +131,7 @@ for cond_iter = 1:length(conditions)
     
     
     %% Plotting
-    if plotting
+    if dist_plotting
     figure(3)
     subplot(3,1,1)
     hold on
