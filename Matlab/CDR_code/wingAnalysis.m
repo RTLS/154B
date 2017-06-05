@@ -633,8 +633,9 @@ fos_panel = abs(Sigma_crit_panel .* (1./PHAA_panel_stress));
 
 
 %% Von Mises
-% PHAA_sigma_von = von_mises(PHAA_shear_stress, PHAA_bending_stress);
-
+PHAA_sigma_von = von_mises(PHAA_shear_stress, PHAA_bending_stress);
+PHAA_panel_shear = calc_panel_shear(PHAA_shear_stress);
+fos_von = abs(PHAA_sigma_von .*  (1./PHAA_panel_shear));
 
 %% Wing Divergence
 
@@ -660,6 +661,8 @@ weight = weight + numRibs*ribVolume;
 if min(fos_panel(:)) < 1
     weight = inf;
 elseif min(fos_col(:)) < 1
+    weight = inf;
+elseif min(fos_von(:)) < 1
     weight = inf;
 end
 
