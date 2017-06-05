@@ -1,33 +1,8 @@
-function [ weight ] = wingAnalysis(numTopStringers, numBottomStringers, numNoseTopStringers, numNoseBottomStringers,...
-                                  topStringerThick, bottomStringerThick, noseTopStringerThick, noseBottomStringerThick,...
-                                  t_upper, t_lower, t_upper_front, t_lower_front, t_frontSpar, t_rearSpar,...
-                                  frontSpar, backSpar,...
-                                  numRibs,...
-                                  sparCapArea1, sparCapArea2, sparCapArea3, sparCapArea4,...
-                                  plotting)
-                              
 distributions
+load('final/final_workspace1.mat');
 
-% plotting = 0;
+plotting = 1;
 c = 5*12;
-
-
-%% Define our geometry -- will optimize on this later
-% numTopStringers = 4;
-% numBottomStringers = 4;
-% numNoseTopStringers = 2;
-% numNoseBottomStringers = 2;
-
-% Thicknesses in inches
-% t_upper = 0.6;
-% t_lower = 0.4;
-% t_upper_front = 0.8;
-% t_lower_front = 0.8;
-% t_frontSpar = 0.032;
-% t_rearSpar = 0.032;
-
-frontSpar = frontSpar * c;
-backSpar = backSpar * c;
 
 % numRibs = 20;
 nRib = 1:numRibs-1;
@@ -627,14 +602,15 @@ fos_col = abs(Sigma_crit_col'*ones(1,numRibs-1)./(PHAA_stringer_stress));
 k = 7;
 poissons = 0.33;
 Sigma_crit_panel = (k*pi^2*E) / (12*(1-poissons^2)) * (panel_thickness'*(1./ribL)).^2;
-fos_panel = abs(Sigma_crit_panel .* (1./PHAA_panel_stress));
+fos_panel = abs(Sigma_crit_panel ./ PHAA_panel_stress);
 
 % Cylindrical
 
 
 %% Von Mises
-% PHAA_sigma_von = von_mises(PHAA_shear_stress, PHAA_bending_stress);
-
+PHAA_sigma_von = von_mises(PHAA_shear_stress, PHAA_bending_stress);
+PHAA_panel_shear = calc_panel_shear(PHAA_shear_stress);
+fos_von = abs(PHAA_sigma_von .*  (1./PHAA_panel_shear));
 
 %% Wing Divergence
 
@@ -660,6 +636,8 @@ weight = weight + numRibs*ribVolume;
 if min(fos_panel(:)) < 1
     weight = inf;
 elseif min(fos_col(:)) < 1
+    weight = inf;
+elseif min(fos_von(:)) < 1
     weight = inf;
 end
 
@@ -727,21 +705,20 @@ if plotting
 %     print(strcat([path 'bending_stress_3d']), '-dpng');
 
     figure(3); hold on;
-    for i = 1:length(PHAA_shear_stress(:,1));
-        plot(PHAA_shear_stress(i,:))
+    for i = 1:length(fos_col(:,1));
+        plot(fos_col(i,:))
     end
-    title('Shear Stress Across the Wing')
-    xlabel('X Distance [in]')
-    ylabel('Shear Stress [psi]')
+    title('Column Buckling FOS Across Wing')
+    xlabel('Rib Number')
+    ylabel('FOS')
 %     print(strcat([path 'shear_stress_stringers']), '-dpng');
 
     figure(4); hold on;
-    for i = 1:length(PHAA_bending_stress(:,1));
-        plot(PHAA_bending_stress(i,:))
+    for i = 1:length(fos_panel(:,1));
+        plot(fos_panel(i,:))
     end
-    title('Bending Stress Across the Wing')
-    xlabel('X Distance [in]')
-    ylabel('Shear Stress [psi]')
+    title('Panel Buckling Across the Wing')
+    xlabel('Rib Number')
+    ylabel('FOS')
 %     print(strcat([path 'bending_stress_stringers']), '-dpng');
-end
 end
