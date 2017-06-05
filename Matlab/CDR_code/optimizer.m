@@ -9,7 +9,7 @@ numRibsValues = 8:30;
 sparCapAreas = .02*exp([1:20]/5);
 
 minWeight = inf;
-for i = 1:42000;
+for i = 1:2000;
     %% Making Guesses
     % Number of stringers
     num = length(stringerNumber);

@@ -535,19 +535,19 @@ webFrontSpar = sum_shear_flows(webFrontSpar, qt_X(1)-qt_X(2), qt_Y(1)-qt_Y(2), q
 
 %% Shear flows and stresses, still need to superimpose tho
 if loading_condition == 1
-    unit_shear_flows_X = [webUpperNose.qtot_X webTop.qtot_X webRearSpar.qtot_X webBottom.qtot_X webFrontSpar.qtot_X webLowerNose.qtot_X];
-    unit_shear_stresses_X = [[webUpperNose.qtot_X]/t_upper_front [webTop.qtot_X]/t_upper [webRearSpar.qtot_X]/t_rearSpar...
-        [webBottom.qtot_X]/t_lower [webFrontSpar.qtot_X]/t_frontSpar [webLowerNose.qtot_X]/t_lower_front];
+    unit_shear_flows_X = [webUpperNose.qtot_X webTop.qtot_X webBottom.qtot_X webLowerNose.qtot_X];
+    unit_shear_stresses_X = [[webUpperNose.qtot_X]/t_upper_front [webTop.qtot_X]/t_upper ...
+        [webBottom.qtot_X]/t_lower [webLowerNose.qtot_X]/t_lower_front];
     shear_z = sc.posZ;
 elseif loading_condition ==2
-    unit_shear_flows_Z = [webUpperNose.qtot_Z webTop.qtot_Z webRearSpar.qtot_Z webBottom.qtot_Z webFrontSpar.qtot_Z webLowerNose.qtot_Z];
-    unit_shear_stresses_Z = [[webUpperNose.qtot_Z]/t_upper_front [webTop.qtot_Z]/t_upper [webRearSpar.qtot_Z]/t_rearSpar...
-        [webBottom.qtot_Z]/t_lower [webFrontSpar.qtot_Z]/t_frontSpar [webLowerNose.qtot_Z]/t_lower_front];
+    unit_shear_flows_Z = [webUpperNose.qtot_Z webTop.qtot_Z webBottom.qtot_Z webLowerNose.qtot_Z];
+    unit_shear_stresses_Z = [[webUpperNose.qtot_Z]/t_upper_front [webTop.qtot_Z]/t_upper ...
+        [webBottom.qtot_Z]/t_lower [webLowerNose.qtot_Z]/t_lower_front];
     shear_x = sc.posX;
 elseif loading_condition == 3
-    unit_shear_flows_Y = [webUpperNose.qtot_Y webTop.qtot_Y webRearSpar.qtot_Y webBottom.qtot_Y webFrontSpar.qtot_Y webLowerNose.qtot_Y];
-    unit_shear_stresses_Y = [[webUpperNose.qtot_Y]/t_upper_front [webTop.qtot_Y]/t_upper [webRearSpar.qtot_Y]/t_rearSpar...
-        [webBottom.qtot_Y]/t_lower [webFrontSpar.qtot_Y]/t_frontSpar [webLowerNose.qtot_Y]/t_lower_front];
+    unit_shear_flows_Y = [webUpperNose.qtot_Y webTop.qtot_Y webBottom.qtot_Y webLowerNose.qtot_Y];
+    unit_shear_stresses_Y = [[webUpperNose.qtot_Y]/t_upper_front [webTop.qtot_Y]/t_upper ...
+        [webBottom.qtot_Y]/t_lower [webLowerNose.qtot_Y]/t_lower_front];
 end
 
 
@@ -557,7 +557,7 @@ sc.posX = shear_x;
 sc.posZ = shear_z;
 
 %% Shear Stress Distributions
-numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 6;
+numWebs = numTopStringers + numBottomStringers + numNoseTopStringers + numNoseBottomStringers + 4;
 numCrossSections = length(PHAA_MX);
 PHAA_shear_stress = zeros(numWebs, numCrossSections);
 PLAA_shear_stress = zeros(numWebs, numCrossSections);
@@ -611,7 +611,7 @@ NHAA_panel_stress = calc_panel_stress(NHAA_stringer_stress);
 NLAA_panel_stress = calc_panel_stress(NLAA_stringer_stress);
 
 panel_thickness = [t_upper_front*ones(numNoseTopStringers+1,1)' t_upper*ones(numTopStringers+1,1)'...
-                   t_lower*ones(numBottomStringers+1,1)' t_lower_front*ones(numNoseBottomStringers,1)'];
+                   t_lower*ones(numBottomStringers+1,1)' t_lower_front*ones(numNoseBottomStringers+1,1)'];
 
 
 %% Column Bucking
@@ -627,7 +627,7 @@ fos_col = abs(Sigma_crit_col'*ones(1,numRibs-1)./(PHAA_stringer_stress));
 k = 7;
 poissons = 0.33;
 Sigma_crit_panel = (k*pi^2*E) / (12*(1-poissons^2)) * (panel_thickness'*(1./ribL)).^2;
-fos_panel = abs(Sigma_crit_panel ./ PHAA_panel_stress);
+fos_panel = abs(Sigma_crit_panel .* (1./PHAA_panel_stress));
 
 % Cylindrical
 
